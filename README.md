@@ -1,6 +1,6 @@
 # Cloudflare Workers Full-Stack React Template
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avattuonecf/speedscale-cloudflare-performance-simulator)
 
 A production-ready full-stack application template powered by Cloudflare Workers. This template provides a modern React frontend with shadcn/ui components, Tailwind CSS styling, and a robust Hono-based backend using Durable Objects for persistent storage. Perfect for building scalable, edge-deployed applications.
 
@@ -117,7 +117,7 @@ bun run deploy
 
 This bundles the Worker, uploads assets, and deploys your app globally.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/avattuonecf/speedscale-cloudflare-performance-simulator)
 
 **Custom Domain**: Bind a custom domain via Wrangler or Cloudflare Dashboard.
 
