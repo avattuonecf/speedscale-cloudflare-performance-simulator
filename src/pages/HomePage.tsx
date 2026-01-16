@@ -20,7 +20,7 @@ export function HomePage() {
       const json = await res.json();
       if (json.success) setGlobalStats(json.data);
     } catch (e) {
-      console.warn('Failed to load global stats');
+      // Non-critical background fetch
     }
   }, []);
   useEffect(() => {
@@ -29,22 +29,24 @@ export function HomePage() {
   const startTest = async () => {
     setResults(null);
     setStatus('running');
-    toast.info('Initiating browser-level handshake...');
+    toast.loading('Initiating browser-level handshake...');
     try {
       const testResults = await runSpeedTest(
         cfUrlInput.trim() || undefined,
         originUrlInput.trim() || undefined
       );
-      // Simulate diagnostic processing time for UX impact
+      // Processing delay for UX and to ensure state resets
       setTimeout(() => {
+        toast.dismiss();
         setResults(testResults);
         setStatus('results');
         fetchGlobalStats();
-        toast.success('Benchmark complete!');
-      }, 2000);
+        toast.success('Benchmark Analysis Complete');
+      }, 1500);
     } catch (e) {
+      toast.dismiss();
       setStatus('idle');
-      toast.error('Performance analysis failed. Check your connection.');
+      toast.error('Performance analysis failed. Browser security policy restricted the test.');
     }
   };
   return (
@@ -58,20 +60,20 @@ export function HomePage() {
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tighter">SpeedScale</h1>
-              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Local Browser Diagnostic Engine</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Edge Diagnostic Engine v1.1</p>
             </div>
           </div>
           <div className="flex items-center gap-8 text-sm">
             <div className="flex flex-col items-end border-l pl-8">
-              <span className="uppercase text-[9px] font-black tracking-widest text-muted-foreground">Global Reach</span>
-              <span className="font-mono font-bold tabular-nums text-foreground">{globalStats.toLocaleString()} tests run</span>
+              <span className="uppercase text-[9px] font-black tracking-widest text-muted-foreground">Network Integrity</span>
+              <span className="font-mono font-bold tabular-nums text-foreground">{globalStats.toLocaleString()} global benchmarks</span>
             </div>
           </div>
         </header>
         <main className="flex-1">
           <AnimatePresence mode="wait">
             {status === 'idle' && (
-              <motion.div 
+              <motion.div
                 key="idle"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -80,36 +82,36 @@ export function HomePage() {
               >
                 <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 text-[10px] font-bold uppercase tracking-widest border border-emerald-100 dark:border-emerald-800 shadow-sm">
                   <MousePointer2 className="w-3 h-3" />
-                  100% Client-Side Benchmarking
+                  Real-Time Browser Measurements
                 </div>
                 <h2 className="text-6xl md:text-8xl font-black tracking-tighter text-balance leading-tight">
-                  Benchmark from <span className="text-[#F38020]">Your Browser</span>.
+                  The Speed of <span className="text-[#F38020]">Edge</span>.
                 </h2>
                 <p className="text-xl text-muted-foreground text-pretty max-w-2xl mx-auto font-medium">
-                  Measure authentic network performance between Cloudflare's Edge and your direct connection, captured right from your device.
+                  Compare direct origin latency against Cloudflare's global edge network, measured with micro-precision directly from your browser.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto pt-8">
                   <div className="space-y-3 text-left">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-[#F38020] px-1">Edge Target (CF)</label>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-[#F38020] px-1">Edge Target</label>
                     <div className="relative">
                       <Zap className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#F38020]" />
                       <Input
                         placeholder="e.g. cloudflare.com"
                         value={cfUrlInput}
                         onChange={(e) => setCfUrlInput(e.target.value)}
-                        className="pl-12 h-14 bg-secondary/30 rounded-2xl text-lg font-medium border-0 focus:ring-2 focus:ring-[#F38020]/20"
+                        className="pl-12 h-14 bg-secondary/30 rounded-2xl text-lg font-medium border-0 focus:ring-2 focus:ring-[#F38020]/20 transition-all"
                       />
                     </div>
                   </div>
                   <div className="space-y-3 text-left">
-                    <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground px-1">Direct Target (Origin)</label>
+                    <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground px-1">Origin Target</label>
                     <div className="relative">
                       <Server className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
                       <Input
                         placeholder="e.g. google.com"
                         value={originUrlInput}
                         onChange={(e) => setOriginUrlInput(e.target.value)}
-                        className="pl-12 h-14 bg-secondary/30 rounded-2xl text-lg font-medium border-0 focus:ring-2 focus:ring-blue-500/20"
+                        className="pl-12 h-14 bg-secondary/30 rounded-2xl text-lg font-medium border-0 focus:ring-2 focus:ring-blue-500/20 transition-all"
                       />
                     </div>
                   </div>
@@ -120,13 +122,13 @@ export function HomePage() {
                     size="lg"
                     className="w-full bg-[#F38020] hover:bg-[#E55A1B] text-white h-14 text-xl font-black shadow-xl shadow-[#F38020]/20 rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    START LOCAL TEST
+                    RUN DIAGNOSTICS
                   </Button>
                 </div>
               </motion.div>
             )}
             {status === 'running' && (
-              <motion.div 
+              <motion.div
                 key="running"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -134,14 +136,15 @@ export function HomePage() {
                 className="max-w-2xl mx-auto py-20 text-center space-y-12"
               >
                 <div className="relative inline-flex items-center justify-center">
-                  <Activity className="w-16 h-16 text-[#F38020] animate-pulse" />
+                  <div className="absolute inset-0 bg-[#F38020]/20 blur-3xl rounded-full animate-pulse" />
+                  <Activity className="w-16 h-16 text-[#F38020] relative z-10" />
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-3xl font-black tracking-tighter uppercase italic">Measuring Client Latency...</h3>
-                  <p className="text-muted-foreground text-xs font-bold tracking-widest uppercase">Capturing high-fidelity browser timings</p>
+                  <h3 className="text-3xl font-black tracking-tighter uppercase italic">Analyzing Path Latency...</h3>
+                  <p className="text-muted-foreground text-xs font-bold tracking-widest uppercase">Executing Zero-Proxy Handshake</p>
                 </div>
                 <div className="max-w-md mx-auto space-y-6">
-                   <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                   <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: "0%" }}
                         animate={{ width: "100%" }}
@@ -149,16 +152,16 @@ export function HomePage() {
                         className="h-full bg-[#F38020]"
                       />
                    </div>
-                   <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-muted-foreground">
+                   <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
                      <span>Handshake</span>
-                     <span>Resolution</span>
-                     <span>Payload Capture</span>
+                     <span>Timing Capture</span>
+                     <span>Finalization</span>
                    </div>
                 </div>
               </motion.div>
             )}
             {status === 'results' && results && (
-              <motion.div 
+              <motion.div
                 key="results"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -169,10 +172,10 @@ export function HomePage() {
                   <Button
                     variant="outline"
                     onClick={() => setStatus('idle')}
-                    className="gap-3 rounded-full px-10 h-14 font-bold uppercase tracking-widest text-xs hover:bg-secondary/50"
+                    className="gap-3 rounded-full px-10 h-14 font-black uppercase tracking-widest text-xs hover:bg-secondary/50 border-2"
                   >
                     <RefreshCcw className="w-4 h-4" />
-                    Rerun New Targets
+                    Reset Simulation
                   </Button>
                 </div>
               </motion.div>
@@ -181,8 +184,8 @@ export function HomePage() {
         </main>
         <footer className="border-t py-12 mt-auto flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
           <div className="flex items-center gap-2">
-            <Globe className="w-3 h-3" />
-            <p>Measured via W3C Performance Timeline API</p>
+            <Globe className="w-3 h-3 text-[#F38020]" />
+            <p>Verified via W3C Performance Resource Timing API</p>
           </div>
           <div className="flex gap-10">
             <span className="opacity-50 hover:opacity-100 transition-opacity">Diagnostic Mode: Pure Client-Side</span>

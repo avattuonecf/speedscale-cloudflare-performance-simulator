@@ -2,7 +2,8 @@ import React from 'react';
 import { SpeedTestResult, NetworkBreakdown } from '@shared/types';
 import { MetricCard } from '@/components/ui/metric-card';
 import { DetailedWaterfall } from '@/components/DetailedWaterfall';
-import { Zap, Shield, Globe, Clock, ArrowRight, MousePointer2, CheckCircle2 } from 'lucide-react';
+import { TracerouteSection } from '@/components/TracerouteSection';
+import { Zap, Globe, ArrowRight, MousePointer2, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 interface SpeedVisualizerProps {
   results: SpeedTestResult;
@@ -14,25 +15,29 @@ const SourceBadge = ({ label }: { label: string }) => (
   </Badge>
 );
 export function SpeedVisualizer({ results }: SpeedVisualizerProps) {
-  const edgeBreakdown: NetworkBreakdown = results.edge?.breakdown || { dns: 0, connect: 0, tls: 0, wait: 0, download: 0 };
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-      <div className="text-center space-y-6">
+      <div className="text-center space-y-8">
         <div className="flex flex-wrap justify-center gap-3">
           <SourceBadge label="Local Browser" />
-          <Badge variant="outline" className="px-3 py-1 gap-1.5 border-blue-200 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-tighter">
-            <MousePointer2 className="w-2.5 h-2.5" />
-            Zero-Proxy Measurement
+          <Badge variant="outline" className="px-3 py-1 gap-1.5 border-[#F38020]/20 bg-[#F38020]/5 text-[#F38020] rounded-full text-[9px] font-black uppercase tracking-tighter">
+            <ShieldCheck className="w-2.5 h-2.5" />
+            Edge IP: {results.edge.resolvedIP}
+          </Badge>
+          <Badge variant="outline" className="px-3 py-1 gap-1.5 border-slate-200 bg-slate-50 text-slate-600 rounded-full text-[9px] font-black uppercase tracking-tighter">
+            <Globe className="w-2.5 h-2.5" />
+            Origin IP: {results.origin.resolvedIP}
           </Badge>
         </div>
-        <div className="space-y-2">
-          <h2 className="text-5xl md:text-7xl font-extrabold tracking-tighter">
-            <span className="text-[#F38020]">{results.speedup}x</span> Faster
+        <div className="space-y-4">
+          <h2 className="text-8xl md:text-9xl font-black tracking-tighter leading-none">
+            <span className="text-[#F38020]">{results.speedup}x</span>
           </h2>
-          <div className="flex items-center justify-center gap-4 text-muted-foreground font-medium uppercase text-[10px] tracking-[0.3em]">
-            <span>Direct Path: {results.origin.totalTime}ms</span>
+          <div className="text-3xl font-black tracking-tighter uppercase italic opacity-80">Faster via Cloudflare Edge</div>
+          <div className="flex items-center justify-center gap-4 text-muted-foreground font-bold uppercase text-[10px] tracking-[0.4em] pt-4">
+            <span className="opacity-50">Origin: {results.origin.totalTime}ms</span>
             <ArrowRight className="w-3 h-3 text-[#F38020]" />
-            <span className="text-[#F38020]">Edge Path: {results.edge.totalTime}ms</span>
+            <span className="text-[#F38020]">Edge: {results.edge.totalTime}ms</span>
           </div>
         </div>
       </div>
@@ -52,38 +57,30 @@ export function SpeedVisualizer({ results }: SpeedVisualizerProps) {
         <MetricCard
           label="Edge TTFB"
           value={`${results.edge.ttfb}ms`}
-          subValue="First byte from Edge"
+          subValue="Edge Handshake"
           variant="edge"
         />
         <MetricCard
           label="Direct TTFB"
           value={`${results.origin.ttfb}ms`}
-          subValue="First byte from Origin"
+          subValue="Origin Handshake"
           variant="origin"
         />
       </div>
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
-          <h3 className="text-lg font-bold tracking-tight">Latency Spectrum Analysis</h3>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-muted-foreground/60">
-              <Globe className="w-3 h-3" /> DNS
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-muted-foreground/60">
-              <Shield className="w-3 h-3" /> TLS
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-muted-foreground/60">
-              <Clock className="w-3 h-3" /> TTFB
-            </div>
-          </div>
+          <h3 className="text-lg font-black uppercase tracking-tighter">Latency Spectrum Analysis</h3>
         </div>
         <DetailedWaterfall edge={results.edge} origin={results.origin} />
       </div>
+      <div className="space-y-6">
+        <TracerouteSection edge={results.edge} origin={results.origin} />
+      </div>
       <div className="bg-secondary/20 rounded-2xl p-6 text-center border border-dashed">
         <p className="text-xs text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-          <span className="font-bold text-foreground">Technical Note:</span> All benchmarks are executed 
-          <span className="text-[#F38020] font-bold"> directly within your browser</span> using the W3C Resource Timing API. 
-          This provides a 100% authentic representation of how your specific network connection interacts with both the global Edge and the origin servers.
+          <span className="font-bold text-foreground">Technical Methodology:</span> All benchmarks are executed
+          <span className="text-[#F38020] font-bold"> natively in-browser</span> via W3C Resource Timing API.
+          Traceroute hops are estimated based on local RTT signatures and regional IXP database mapping.
         </p>
       </div>
     </div>

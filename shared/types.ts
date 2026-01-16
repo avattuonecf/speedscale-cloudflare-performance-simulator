@@ -15,6 +15,12 @@ export interface NetworkBreakdown {
   wait: number;
   download: number;
 }
+export interface TracerouteHop {
+  id: number;
+  label: string;
+  latency: number;
+  ip: string;
+}
 export interface TestMetric {
   ttfb: number;
   duration: number;
@@ -25,6 +31,7 @@ export interface TestMetric {
   resolvedIP?: string;
   testedUrl?: string;
   breakdown: NetworkBreakdown;
+  traceroute?: TracerouteHop[];
   protocol: 'http' | 'https';
   error?: boolean;
   source: 'worker' | 'browser';
