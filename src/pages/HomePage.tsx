@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Globe, RefreshCcw, Activity, Link as LinkIcon, Server } from 'lucide-react';
+import { Zap, Globe, RefreshCcw, Activity, Server } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,15 @@ export function HomePage() {
       console.warn('Failed to load global stats');
     }
   };
+  const getDisplayHostname = (urlStr: string, fallback: string) => {
+    if (!urlStr) return fallback;
+    try {
+      const formatted = urlStr.startsWith('http') ? urlStr : `https://${urlStr}`;
+      return new URL(formatted).hostname;
+    } catch {
+      return fallback;
+    }
+  };
   const startTest = async () => {
     let cfTarget = cfUrlInput.trim();
     let originTarget = originUrlInput.trim();
@@ -38,7 +47,7 @@ export function HomePage() {
       setTimeout(() => {
         setResults(testResults);
         setStatus('results');
-        fetchGlobalStats();
+        fetchGlobalStats().catch(() => {}); // Silent update
         toast.success('Simulation complete!');
       }, 2500);
     } catch (e) {
@@ -135,8 +144,8 @@ export function HomePage() {
                 <div className="space-y-8 text-left max-w-md mx-auto">
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                      <span className="flex items-center gap-1.5 text-[#F38020]">
-                        <Zap className="w-3 h-3" /> {cfUrlInput ? new URL(cfUrlInput.startsWith('http') ? cfUrlInput : `https://${cfUrlInput}`).hostname : 'Cloudflare Edge'}
+                      <span className="flex items-center gap-1.5 text-[#F38020] truncate max-w-[200px]">
+                        <Zap className="w-3 h-3 flex-shrink-0" /> {getDisplayHostname(cfUrlInput, 'Cloudflare Edge')}
                       </span>
                       <span className="text-muted-foreground">Resolved</span>
                     </div>
@@ -151,8 +160,8 @@ export function HomePage() {
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Server className="w-3 h-3" /> {originUrlInput ? new URL(originUrlInput.startsWith('http') ? originUrlInput : `https://${originUrlInput}`).hostname : 'Origin Server'}
+                      <span className="flex items-center gap-1.5 text-muted-foreground truncate max-w-[200px]">
+                        <Server className="w-3 h-3 flex-shrink-0" /> {getDisplayHostname(originUrlInput, 'Origin Server')}
                       </span>
                       <span className="text-muted-foreground">Fetching...</span>
                     </div>
@@ -186,7 +195,7 @@ export function HomePage() {
           )}
         </main>
         <footer className="border-t py-8 mt-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
-          <p>© 2024 SpeedScale Engine. DNS Resolution provided by Google Public DNS.</p>
+          <p>© 2024 SpeedScale Engine. DNS Resolution via Google Public DNS.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-foreground">Methodology</a>
             <a href="#" className="hover:text-foreground">Privacy</a>

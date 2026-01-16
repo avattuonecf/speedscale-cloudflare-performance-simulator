@@ -6,38 +6,44 @@ async function measureRequest(endpoint: string, label: string, targetUrl?: strin
   if (targetUrl) {
     queryParams.set('url', targetUrl);
   }
-  const response = await fetch(`${endpoint}?${queryParams.toString()}`);
-  const ttfb = performance.now() - start;
-  const json = await response.json() as ApiResponse<any>;
-  const data = json.data || {};
-  const end = performance.now();
-  return {
-    ttfb: Math.round(ttfb),
-    duration: Math.round(end - (start + ttfb)),
-    totalTime: Math.round(end - start),
-    size: data.size || '0kb',
-    label,
-    targetUrl: targetUrl,
-    resolvedIP: data.resolvedIP,
-    testedUrl: data.testedUrl
-  };
+  try {
+    const response = await fetch(`${endpoint}?${queryParams.toString()}`);
+    const ttfb = performance.now() - start;
+    const json = await response.json() as ApiResponse<any>;
+    const data = json.data || {};
+    const end = performance.now();
+    return {
+      ttfb: Math.max(0, Math.round(ttfb)),
+      duration: Math.max(0, Math.round(end - (start + ttfb))),
+      totalTime: Math.max(1, Math.round(end - start)), // Ensure at least 1ms to prevent division by zero
+      size: data.size || '0kb',
+      label,
+      targetUrl: targetUrl,
+      resolvedIP: data.resolvedIP,
+      testedUrl: data.testedUrl
+    };
+  } catch (error) {
+    console.error(`Measurement failed for ${label}`, error);
+    throw error;
+  }
 }
 export async function runSpeedTest(cfUrl?: string, originUrl?: string): Promise<SpeedTestResult> {
-  // Parallel execution of edge and origin simulations with their respective targets
+  // Parallel execution
   const [edgeResult, originResult] = await Promise.all([
     measureRequest('/api/simulate/edge', 'Cloudflare Edge', cfUrl),
     measureRequest('/api/simulate/origin', 'Origin Server', originUrl)
   ]);
-  const speedup = Number((originResult.totalTime / edgeResult.totalTime).toFixed(1));
-  try {
-    await fetch('/api/stats/increment', { method: 'POST' });
-  } catch (e) {
-    console.warn('Failed to update global stats', e);
+  // Calculate speedup with protection against zero-division
+  let speedup = 1.0;
+  if (edgeResult.totalTime > 0) {
+    speedup = Number((originResult.totalTime / edgeResult.totalTime).toFixed(1));
   }
+  // Fire and forget stats increment
+  fetch('/api/stats/increment', { method: 'POST' }).catch(() => {});
   return {
     edge: edgeResult,
     origin: originResult,
-    speedup,
+    speedup: isNaN(speedup) || !isFinite(speedup) ? 1.0 : speedup,
     targetUrl: cfUrl,
     originUrl: originUrl
   };
