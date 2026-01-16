@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { Env } from './core-utils';
 import type { ApiResponse } from '@shared/types';
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-    const validateUrl = (url: string | null) => {
+    const validateUrl = (url: string | null | undefined) => {
         if (!url) return null;
         try {
             const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Globe, RefreshCcw, Activity, Link as LinkIcon } from 'lucide-react';
+import { Zap, Globe, RefreshCcw, Activity, Link as LinkIcon, Server } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Toaster, toast } from 'sonner';
@@ -33,10 +34,13 @@ export function HomePage() {
     toast.info(target ? `Testing performance for ${target}...` : 'Initiating speed simulation...');
     try {
       const testResults = await runSpeedTest(target || undefined);
-      setResults(testResults);
-      setStatus('results');
-      fetchGlobalStats();
-      toast.success('Simulation complete!');
+      // Wait a moment for visual impact if it finished too fast
+      setTimeout(() => {
+        setResults(testResults);
+        setStatus('results');
+        fetchGlobalStats();
+        toast.success('Simulation complete!');
+      }, 2500);
     } catch (e) {
       setStatus('idle');
       toast.error('Simulation failed. Please check the URL and try again.');
@@ -100,24 +104,59 @@ export function HomePage() {
                 >
                   Run Simulation
                 </Button>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest text-center">
                   Leave empty to use sample data
                 </p>
               </div>
             </div>
           )}
           {status === 'running' && (
-            <div className="max-w-2xl mx-auto py-32 text-center space-y-12">
+            <div className="max-w-2xl mx-auto py-20 text-center space-y-12 animate-in fade-in duration-500">
               <div className="relative inline-flex items-center justify-center">
                 <div className="absolute inset-0 bg-[#F38020]/20 blur-3xl rounded-full animate-pulse" />
-                <Activity className="w-16 h-16 text-[#F38020] animate-bounce" />
+                <Activity className="w-16 h-16 text-[#F38020]" />
               </div>
-              <div className="space-y-4">
-                <h3 className="text-2xl font-semibold">Testing Latency...</h3>
-                <div className="w-full max-w-sm mx-auto h-2 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full bg-[#F38020] animate-[shimmer_2s_infinite]" style={{ width: '60%' }} />
+              <div className="space-y-10">
+                <h3 className="text-2xl font-semibold">Simulating Request Lifecycle...</h3>
+                <div className="space-y-8 text-left max-w-md mx-auto">
+                  {/* Edge Progress */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
+                      <span className="flex items-center gap-1.5 text-[#F38020]">
+                        <Zap className="w-3 h-3" /> Cloudflare Edge
+                      </span>
+                      <span className="text-muted-foreground">Est. 25ms</span>
+                    </div>
+                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        className="h-full bg-[#F38020]"
+                      />
+                    </div>
+                  </div>
+                  {/* Origin Progress */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Server className="w-3 h-3" /> Origin Server
+                      </span>
+                      <span className="text-muted-foreground">Est. 950ms</span>
+                    </div>
+                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 2.5, ease: "linear" }}
+                        className="h-full bg-slate-400"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <p className="text-muted-foreground animate-pulse">Requesting payload from {urlInput || 'Edge & Origin'}...</p>
+                <p className="text-muted-foreground animate-pulse text-sm">
+                  Measuring Time to First Byte (TTFB) and Content Delivery...
+                </p>
               </div>
             </div>
           )}

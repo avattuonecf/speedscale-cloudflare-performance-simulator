@@ -21,6 +21,8 @@ export function SpeedVisualizer({ results }: SpeedVisualizerProps) {
     { name: 'Cloudflare Edge', value: results.edge.totalTime, color: '#F38020' },
     { name: 'Origin Server', value: results.origin.totalTime, color: '#94a3b8' },
   ];
+  // Robust scaling for waterfalls
+  const maxTime = Math.max(results.edge.totalTime, results.origin.totalTime, 1);
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       <div className="text-center space-y-4">
@@ -86,13 +88,13 @@ export function SpeedVisualizer({ results }: SpeedVisualizerProps) {
               <div className="w-full h-4 bg-secondary rounded-full overflow-hidden flex">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${(results.edge.ttfb / results.origin.totalTime) * 100}%` }}
+                  animate={{ width: `${(results.edge.ttfb / maxTime) * 100}%` }}
                   transition={{ duration: 1, ease: "easeOut" }}
                   className="h-full bg-[#F38020]/40"
                 />
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${(results.edge.duration / results.origin.totalTime) * 100}%` }}
+                  animate={{ width: `${(results.edge.duration / maxTime) * 100}%` }}
                   transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
                   className="h-full bg-[#F38020]"
                 />
@@ -107,13 +109,13 @@ export function SpeedVisualizer({ results }: SpeedVisualizerProps) {
               <div className="w-full h-4 bg-secondary rounded-full overflow-hidden flex">
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${(results.origin.ttfb / results.origin.totalTime) * 100}%` }}
+                  animate={{ width: `${(results.origin.ttfb / maxTime) * 100}%` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
                   className="h-full bg-slate-400"
                 />
                 <motion.div
                   initial={{ width: 0 }}
-                  animate={{ width: `${(results.origin.duration / results.origin.totalTime) * 100}%` }}
+                  animate={{ width: `${(results.origin.duration / maxTime) * 100}%` }}
                   transition={{ duration: 1.5, delay: 0.5, ease: "easeOut" }}
                   className="h-full bg-slate-600"
                 />
