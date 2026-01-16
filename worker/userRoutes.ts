@@ -54,9 +54,11 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     const res = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
                     const bytes = res.headers.get('content-length');
                     realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '4.5kb';
-                } catch (e) {}
+                } catch (e) {
+                    /* Non-fatal: HEAD request may fail due to CORS or target site policy */
+                    console.warn(`Simulated HEAD request failed for ${targetUrl}:`, e);
+                }
             }
-            // Minimal simulated delay for the Edge proxy hop
             await new Promise(r => setTimeout(r, 10 + Math.random() * 20));
             return c.json({
                 success: true,
@@ -68,9 +70,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     protocol,
                     timestamp: Date.now()
                 }
-            });
+            } satisfies ApiResponse<any>);
         } catch (err) {
-            return c.json({ success: true, data: { error: true, source: 'Cloudflare Edge', size: '0kb', protocol: 'http' } });
+            return c.json({ 
+                success: true, 
+                data: { error: true, source: 'Cloudflare Edge', size: '0kb', protocol: 'http' } 
+            } satisfies ApiResponse<any>);
         }
     });
     app.get('/api/stats', async (c) => {
@@ -79,7 +84,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.getCounterValue();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed' }, 500);
+            return c.json({ success: false, error: 'Failed to fetch global stats' } satisfies ApiResponse<any>, 500);
         }
     });
     app.post('/api/stats/increment', async (c) => {
@@ -88,7 +93,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.increment();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed' }, 500);
+            return c.json({ success: false, error: 'Failed to increment stats' } satisfies ApiResponse<any>, 500);
         }
     });
 }

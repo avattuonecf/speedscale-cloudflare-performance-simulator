@@ -36,12 +36,9 @@ async function measureOriginClientSide(targetUrl?: string): Promise<TestMetric> 
   const url = targetUrl || 'https://example.com';
   const start = performance.now();
   try {
-    // We use no-cors to ensure we can ping almost any URL even if it doesn't have CORS headers
-    // This provides a "real" TTFB/Connection measurement from the browser's perspective
     await fetch(url, { mode: 'no-cors', cache: 'no-cache' });
     const end = performance.now();
     const totalTime = Math.max(1, Math.round(end - start));
-    // Attempt to get high-resolution timing from Resource Timing API
     const entries = performance.getEntriesByName(url);
     const entry = entries[entries.length - 1] as PerformanceResourceTiming;
     let breakdown: NetworkBreakdown;
@@ -54,13 +51,12 @@ async function measureOriginClientSide(targetUrl?: string): Promise<TestMetric> 
         download: Math.round(entry.responseEnd - entry.responseStart) || Math.round(totalTime * 0.2)
       };
     } else {
-      // Fallback proportional breakdown for no-cors/opaque responses
       breakdown = {
         dns: Math.round(totalTime * 0.15),
         connect: Math.round(totalTime * 0.1),
         tls: url.startsWith('https') ? Math.round(totalTime * 0.15) : 0,
         wait: Math.round(totalTime * 0.5),
-        download: Math.round(totalTime * 0.1)
+        download: Math.max(1, totalTime - (Math.round(totalTime * 0.15) + Math.round(totalTime * 0.1) + (url.startsWith('https') ? Math.round(totalTime * 0.15) : 0) + Math.round(totalTime * 0.5)))
       };
     }
     return {
@@ -79,8 +75,13 @@ async function measureOriginClientSide(targetUrl?: string): Promise<TestMetric> 
       breakdown
     };
   } catch (e) {
-    // If blocked by browser or offline
+    console.error('Origin simulation fetch error:', e);
     const totalTime = 800 + Math.random() * 400;
+    const dns = Math.round(totalTime * 0.1);
+    const connect = Math.round(totalTime * 0.1);
+    const tls = url.startsWith('https') ? Math.round(totalTime * 0.1) : 0;
+    const wait = Math.round(totalTime * 0.6);
+    const download = Math.max(1, Math.round(totalTime) - (dns + connect + tls + wait));
     return {
       ttfb: Math.round(totalTime * 0.9),
       duration: 10,
@@ -90,7 +91,7 @@ async function measureOriginClientSide(targetUrl?: string): Promise<TestMetric> 
       error: true,
       source: 'browser',
       protocol: 'https',
-      breakdown: { dns: 100, connect: 100, tls: 100, wait: 400, download: 100 }
+      breakdown: { dns, connect, tls, wait, download }
     };
   }
 }
@@ -107,7 +108,7 @@ export async function runSpeedTest(cfUrl?: string, originUrl?: string): Promise<
   return {
     edge: edgeResult,
     origin: originResult,
-    speedup: isNaN(speedup) || !isFinite(speedup) ? 1.0 : speedup,
+    speedup: isNaN(speedup) || !isFinite(speedup) ? 1.0 : Math.max(0.1, speedup),
     targetUrl: cfUrl,
     originUrl: originUrl
   };
