@@ -12,7 +12,8 @@ export function HomePage() {
   const [status, setStatus] = useState<'idle' | 'running' | 'results'>('idle');
   const [results, setResults] = useState<SpeedTestResult | null>(null);
   const [globalStats, setGlobalStats] = useState<number>(0);
-  const [urlInput, setUrlInput] = useState('');
+  const [cfUrlInput, setCfUrlInput] = useState('');
+  const [originUrlInput, setOriginUrlInput] = useState('');
   useEffect(() => {
     fetchGlobalStats();
   }, []);
@@ -26,15 +27,14 @@ export function HomePage() {
     }
   };
   const startTest = async () => {
-    let target = urlInput.trim();
-    if (target && !target.match(/^https?:\/\//)) {
-      target = `https://${target}`;
-    }
+    let cfTarget = cfUrlInput.trim();
+    let originTarget = originUrlInput.trim();
+    if (cfTarget && !cfTarget.match(/^https?:\/\//)) cfTarget = `https://${cfTarget}`;
+    if (originTarget && !originTarget.match(/^https?:\/\//)) originTarget = `https://${originTarget}`;
     setStatus('running');
-    toast.info(target ? `Testing performance for ${target}...` : 'Initiating speed simulation...');
+    toast.info('Initiating dual-target simulation...');
     try {
-      const testResults = await runSpeedTest(target || undefined);
-      // Wait a moment for visual impact if it finished too fast
+      const testResults = await runSpeedTest(cfTarget || undefined, originTarget || undefined);
       setTimeout(() => {
         setResults(testResults);
         setStatus('results');
@@ -43,7 +43,7 @@ export function HomePage() {
       }, 2500);
     } catch (e) {
       setStatus('idle');
-      toast.error('Simulation failed. Please check the URL and try again.');
+      toast.error('Simulation failed. Please check the URLs.');
     }
   };
   return (
@@ -59,53 +59,67 @@ export function HomePage() {
           </div>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
             <div className="flex flex-col items-end">
-              <span className="uppercase text-[10px] font-bold tracking-widest">Edge Status</span>
+              <span className="uppercase text-[10px] font-bold tracking-widest text-foreground/60">Edge Status</span>
               <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 Optimal
               </span>
             </div>
             <div className="flex flex-col items-end">
-              <span className="uppercase text-[10px] font-bold tracking-widest">Global Tests</span>
+              <span className="uppercase text-[10px] font-bold tracking-widest text-foreground/60">Global Tests</span>
               <span className="font-medium tabular-nums text-foreground">{globalStats.toLocaleString()}</span>
             </div>
           </div>
         </header>
         <main className="flex-1">
           {status === 'idle' && (
-            <div className="max-w-3xl mx-auto text-center space-y-8 py-12 md:py-20 animate-in fade-in zoom-in-95 duration-700">
+            <div className="max-w-4xl mx-auto text-center space-y-8 py-12 md:py-20 animate-in fade-in zoom-in-95 duration-700">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-medium border">
                 <Globe className="w-3 h-3 text-[#F38020]" />
-                Live Network Simulation
+                Real-World DNS & Latency Simulation
               </div>
               <h2 className="text-5xl md:text-7xl font-bold tracking-tight text-balance">
                 Experience the <span className="text-[#F38020]">Edge</span> performance.
               </h2>
-              <p className="text-xl text-muted-foreground text-pretty max-w-xl mx-auto">
-                Compare direct-to-origin latency against Cloudflare's global network in real-time.
+              <p className="text-xl text-muted-foreground text-pretty max-w-2xl mx-auto">
+                Compare a Cloudflare-optimized site directly against an origin server.
               </p>
-              <div className="max-w-md mx-auto space-y-4 pt-4">
-                <div className="relative group">
-                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-[#F38020] transition-colors">
-                    <LinkIcon className="w-4 h-4" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl mx-auto pt-6">
+                <div className="space-y-2 text-left">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground ml-1">Cloudflare Site</label>
+                  <div className="relative">
+                    <Zap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#F38020]" />
+                    <Input
+                      placeholder="https://example.cloudflare.com"
+                      value={cfUrlInput}
+                      onChange={(e) => setCfUrlInput(e.target.value)}
+                      className="pl-10 h-12 bg-secondary/50 border-input focus:border-[#F38020] focus:ring-[#F38020]/20 rounded-xl"
+                    />
                   </div>
-                  <Input
-                    type="text"
-                    placeholder="https://example.com"
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    className="pl-10 h-12 bg-secondary/50 border-input focus:border-[#F38020] focus:ring-[#F38020]/20 rounded-xl transition-all"
-                  />
                 </div>
+                <div className="space-y-2 text-left">
+                  <label className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground ml-1">Origin / Direct</label>
+                  <div className="relative">
+                    <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="https://example.com"
+                      value={originUrlInput}
+                      onChange={(e) => setOriginUrlInput(e.target.value)}
+                      className="pl-10 h-12 bg-secondary/50 border-input focus:border-primary focus:ring-primary/20 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="max-w-xs mx-auto space-y-4">
                 <Button
                   onClick={startTest}
                   size="lg"
-                  className="w-full bg-[#F38020] hover:bg-[#E55A1B] text-white h-12 text-lg font-semibold shadow-lg shadow-[#F38020]/20 rounded-xl"
+                  className="w-full bg-[#F38020] hover:bg-[#E55A1B] text-white h-12 text-lg font-semibold shadow-lg shadow-[#F38020]/20 rounded-xl mt-4"
                 >
                   Run Simulation
                 </Button>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest text-center">
-                  Leave empty to use sample data
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                  Leave empty to use sample infrastructure
                 </p>
               </div>
             </div>
@@ -117,32 +131,30 @@ export function HomePage() {
                 <Activity className="w-16 h-16 text-[#F38020]" />
               </div>
               <div className="space-y-10">
-                <h3 className="text-2xl font-semibold">Simulating Request Lifecycle...</h3>
+                <h3 className="text-2xl font-semibold">Real Dual-Site Comparison...</h3>
                 <div className="space-y-8 text-left max-w-md mx-auto">
-                  {/* Edge Progress */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                       <span className="flex items-center gap-1.5 text-[#F38020]">
-                        <Zap className="w-3 h-3" /> Cloudflare Edge
+                        <Zap className="w-3 h-3" /> {cfUrlInput ? new URL(cfUrlInput.startsWith('http') ? cfUrlInput : `https://${cfUrlInput}`).hostname : 'Cloudflare Edge'}
                       </span>
-                      <span className="text-muted-foreground">Est. 25ms</span>
+                      <span className="text-muted-foreground">Resolved</span>
                     </div>
                     <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: "0%" }}
                         animate={{ width: "100%" }}
-                        transition={{ duration: 0.6, ease: "easeOut" }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
                         className="h-full bg-[#F38020]"
                       />
                     </div>
                   </div>
-                  {/* Origin Progress */}
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
                       <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <Server className="w-3 h-3" /> Origin Server
+                        <Server className="w-3 h-3" /> {originUrlInput ? new URL(originUrlInput.startsWith('http') ? originUrlInput : `https://${originUrlInput}`).hostname : 'Origin Server'}
                       </span>
-                      <span className="text-muted-foreground">Est. 950ms</span>
+                      <span className="text-muted-foreground">Fetching...</span>
                     </div>
                     <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
                       <motion.div
@@ -154,9 +166,6 @@ export function HomePage() {
                     </div>
                   </div>
                 </div>
-                <p className="text-muted-foreground animate-pulse text-sm">
-                  Measuring Time to First Byte (TTFB) and Content Delivery...
-                </p>
               </div>
             </div>
           )}
@@ -170,18 +179,18 @@ export function HomePage() {
                   className="gap-2 rounded-full px-8 h-12 border-muted-foreground/20 hover:bg-secondary"
                 >
                   <RefreshCcw className="w-4 h-4" />
-                  Run New Test
+                  New Benchmark
                 </Button>
               </div>
             </div>
           )}
         </main>
         <footer className="border-t py-8 mt-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
-          <p>© 2024 SpeedScale Engine. Real-world performance may vary.</p>
+          <p>© 2024 SpeedScale Engine. DNS Resolution provided by Google Public DNS.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-foreground transition-colors">Methodology</a>
-            <a href="#" className="hover:text-foreground transition-colors">Network Map</a>
-            <a href="#" className="hover:text-foreground transition-colors">Documentation</a>
+            <a href="#" className="hover:text-foreground">Methodology</a>
+            <a href="#" className="hover:text-foreground">Privacy</a>
+            <a href="#" className="hover:text-foreground">Docs</a>
           </div>
         </footer>
       </div>

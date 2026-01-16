@@ -1,12 +1,12 @@
 import { SpeedTestResult, TestMetric, ApiResponse } from '@shared/types';
-async function measureRequest(url: string, label: string, targetUrl?: string): Promise<TestMetric> {
+async function measureRequest(endpoint: string, label: string, targetUrl?: string): Promise<TestMetric> {
   const start = performance.now();
   const queryParams = new URLSearchParams();
   queryParams.set('t', Date.now().toString());
   if (targetUrl) {
     queryParams.set('url', targetUrl);
   }
-  const response = await fetch(`${url}?${queryParams.toString()}`);
+  const response = await fetch(`${endpoint}?${queryParams.toString()}`);
   const ttfb = performance.now() - start;
   const json = await response.json() as ApiResponse<any>;
   const data = json.data || {};
@@ -17,17 +17,18 @@ async function measureRequest(url: string, label: string, targetUrl?: string): P
     totalTime: Math.round(end - start),
     size: data.size || '0kb',
     label,
-    targetUrl: targetUrl
+    targetUrl: targetUrl,
+    resolvedIP: data.resolvedIP,
+    testedUrl: data.testedUrl
   };
 }
-export async function runSpeedTest(targetUrl?: string): Promise<SpeedTestResult> {
-  // Parallel execution of edge and origin simulations
+export async function runSpeedTest(cfUrl?: string, originUrl?: string): Promise<SpeedTestResult> {
+  // Parallel execution of edge and origin simulations with their respective targets
   const [edgeResult, originResult] = await Promise.all([
-    measureRequest('/api/simulate/edge', 'Cloudflare Edge', targetUrl),
-    measureRequest('/api/simulate/origin', 'Origin Server', targetUrl)
+    measureRequest('/api/simulate/edge', 'Cloudflare Edge', cfUrl),
+    measureRequest('/api/simulate/origin', 'Origin Server', originUrl)
   ]);
   const speedup = Number((originResult.totalTime / edgeResult.totalTime).toFixed(1));
-  // Sync with Global Durable Object stats
   try {
     await fetch('/api/stats/increment', { method: 'POST' });
   } catch (e) {
@@ -37,6 +38,7 @@ export async function runSpeedTest(targetUrl?: string): Promise<SpeedTestResult>
     edge: edgeResult,
     origin: originResult,
     speedup,
-    targetUrl
+    targetUrl: cfUrl,
+    originUrl: originUrl
   };
 }

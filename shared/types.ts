@@ -15,10 +15,13 @@ export interface TestMetric {
   size: string;
   label: string;
   targetUrl?: string;
+  resolvedIP?: string;
+  testedUrl?: string;
 }
 export interface SpeedTestResult {
   edge: TestMetric;
   origin: TestMetric;
   speedup: number;
   targetUrl?: string;
+  originUrl?: string;
 }
