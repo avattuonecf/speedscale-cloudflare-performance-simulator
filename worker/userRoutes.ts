@@ -33,10 +33,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const hasProtocol = url.startsWith('http');
             const cleanUrl = hasProtocol ? url : `https://${url}`;
             const parsed = new URL(cleanUrl);
-            // If it's a raw IP and didn't have a protocol, default to http to avoid TLS mismatch
-            if (!hasProtocol && isIPAddress(parsed.hostname)) {
-                return `http://${parsed.hostname}${parsed.pathname}${parsed.search}`;
-            }
             return parsed.toString();
         } catch {
             return null;
@@ -46,25 +42,22 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
         try {
             const urlParam = c.req.query('url');
             const targetUrl = validateUrl(urlParam);
-            let realSize = '1.2kb';
+            let realSize = '4.2kb';
             let ip = '1.1.1.1';
             let protocol: 'http' | 'https' = 'https';
             if (targetUrl) {
                 const urlObj = new URL(targetUrl);
                 protocol = urlObj.protocol === 'https:' ? 'https' : 'http';
-                const host = urlObj.hostname;
-                const resolved = await resolveIP(host);
+                const resolved = await resolveIP(urlObj.hostname);
                 if (resolved) ip = resolved;
                 try {
-                    // HEAD request to check availability/size
                     const res = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
                     const bytes = res.headers.get('content-length');
                     realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '4.5kb';
-                } catch (e) {
-                    console.warn("Edge fetch soft-fail:", e);
-                }
+                } catch (e) {}
             }
-            await new Promise(r => setTimeout(r, Math.random() * 10 + 5));
+            // Minimal simulated delay for the Edge proxy hop
+            await new Promise(r => setTimeout(r, 10 + Math.random() * 20));
             return c.json({
                 success: true,
                 data: {
@@ -78,45 +71,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             });
         } catch (err) {
             return c.json({ success: true, data: { error: true, source: 'Cloudflare Edge', size: '0kb', protocol: 'http' } });
-        }
-    });
-    app.get('/api/simulate/origin', async (c) => {
-        try {
-            const urlParam = c.req.query('url');
-            const targetUrl = validateUrl(urlParam);
-            const injectedDelay = Math.floor(Math.random() * 500) + 600;
-            let realSize = '256kb';
-            let ip = '8.8.8.8';
-            let protocol: 'http' | 'https' = 'https';
-            if (targetUrl) {
-                const urlObj = new URL(targetUrl);
-                protocol = urlObj.protocol === 'https:' ? 'https' : 'http';
-                const host = urlObj.hostname;
-                const resolved = await resolveIP(host);
-                if (resolved) ip = resolved;
-                try {
-                    const res = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
-                    const bytes = res.headers.get('content-length');
-                    realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '256kb';
-                } catch (e) {
-                    console.warn("Origin fetch soft-fail:", e);
-                }
-            }
-            await new Promise(r => setTimeout(r, injectedDelay));
-            return c.json({
-                success: true,
-                data: {
-                    source: 'Origin Server',
-                    size: realSize,
-                    latency_injected: injectedDelay,
-                    resolvedIP: ip,
-                    testedUrl: targetUrl || 'Simulation Mode',
-                    protocol,
-                    timestamp: Date.now()
-                }
-            });
-        } catch (err) {
-            return c.json({ success: true, data: { error: true, source: 'Origin Server', size: '0kb', protocol: 'http' } });
         }
     });
     app.get('/api/stats', async (c) => {

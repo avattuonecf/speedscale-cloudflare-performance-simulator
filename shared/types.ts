@@ -27,6 +27,11 @@ export interface TestMetric {
   breakdown: NetworkBreakdown;
   protocol: 'http' | 'https';
   error?: boolean;
+  source: 'worker' | 'browser';
+  browserMetadata?: {
+    userAgent: string;
+    timingAvailable: boolean;
+  };
 }
 export interface SpeedTestResult {
   edge: TestMetric;
