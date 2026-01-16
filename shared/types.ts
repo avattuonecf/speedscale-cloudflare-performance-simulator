@@ -8,6 +8,13 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
+export interface NetworkBreakdown {
+  dns: number;
+  connect: number;
+  tls: number;
+  wait: number;
+  download: number;
+}
 export interface TestMetric {
   ttfb: number;
   duration: number;
@@ -17,6 +24,9 @@ export interface TestMetric {
   targetUrl?: string;
   resolvedIP?: string;
   testedUrl?: string;
+  breakdown: NetworkBreakdown;
+  protocol: 'http' | 'https';
+  error?: boolean;
 }
 export interface SpeedTestResult {
   edge: TestMetric;

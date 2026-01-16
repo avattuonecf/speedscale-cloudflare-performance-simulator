@@ -1,9 +1,13 @@
 import { Hono } from "hono";
 import { Env } from './core-utils';
 import type { ApiResponse } from '@shared/types';
+const IP_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$|^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}$/;
+function isIPAddress(hostname: string): boolean {
+    return IP_REGEX.test(hostname);
+}
 async function resolveIP(hostname: string): Promise<string | null> {
-    if (!hostname || hostname === 'Simulation Mode' || hostname === 'N/A') {
-        return null;
+    if (!hostname || hostname === 'Simulation Mode' || hostname === 'N/A' || isIPAddress(hostname)) {
+        return isIPAddress(hostname) ? hostname : null;
     }
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000);
@@ -19,7 +23,6 @@ async function resolveIP(hostname: string): Promise<string | null> {
         return null;
     } catch (e) {
         clearTimeout(timeoutId);
-        console.error(`DNS Resolution failed or timed out for ${hostname}:`, e);
         return null;
     }
 }
@@ -27,32 +30,41 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
     const validateUrl = (url: string | null | undefined) => {
         if (!url) return null;
         try {
-            const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-            return parsed.protocol.startsWith('http') ? parsed.toString() : null;
+            const hasProtocol = url.startsWith('http');
+            const cleanUrl = hasProtocol ? url : `https://${url}`;
+            const parsed = new URL(cleanUrl);
+            // If it's a raw IP and didn't have a protocol, default to http to avoid TLS mismatch
+            if (!hasProtocol && isIPAddress(parsed.hostname)) {
+                return `http://${parsed.hostname}${parsed.pathname}${parsed.search}`;
+            }
+            return parsed.toString();
         } catch {
             return null;
         }
     };
-    // Edge Simulation
     app.get('/api/simulate/edge', async (c) => {
         try {
             const urlParam = c.req.query('url');
             const targetUrl = validateUrl(urlParam);
             let realSize = '1.2kb';
             let ip = '1.1.1.1';
+            let protocol: 'http' | 'https' = 'https';
             if (targetUrl) {
-                const host = new URL(targetUrl).hostname;
+                const urlObj = new URL(targetUrl);
+                protocol = urlObj.protocol === 'https:' ? 'https' : 'http';
+                const host = urlObj.hostname;
                 const resolved = await resolveIP(host);
                 if (resolved) ip = resolved;
                 try {
+                    // HEAD request to check availability/size
                     const res = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
                     const bytes = res.headers.get('content-length');
                     realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '4.5kb';
                 } catch (e) {
-                    console.error("Edge fetch error", e);
+                    console.warn("Edge fetch soft-fail:", e);
                 }
             }
-            await new Promise(r => setTimeout(r, Math.random() * 15 + 5));
+            await new Promise(r => setTimeout(r, Math.random() * 10 + 5));
             return c.json({
                 success: true,
                 data: {
@@ -60,23 +72,26 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     size: realSize,
                     resolvedIP: ip,
                     testedUrl: targetUrl || 'Simulation Mode',
+                    protocol,
                     timestamp: Date.now()
                 }
             });
         } catch (err) {
-            return c.json({ success: false, error: 'Edge simulation failed' }, 500);
+            return c.json({ success: true, data: { error: true, source: 'Cloudflare Edge', size: '0kb', protocol: 'http' } });
         }
     });
-    // Origin Simulation
     app.get('/api/simulate/origin', async (c) => {
         try {
             const urlParam = c.req.query('url');
             const targetUrl = validateUrl(urlParam);
-            const injectedDelay = Math.floor(Math.random() * 700) + 800;
+            const injectedDelay = Math.floor(Math.random() * 500) + 600;
             let realSize = '256kb';
             let ip = '8.8.8.8';
+            let protocol: 'http' | 'https' = 'https';
             if (targetUrl) {
-                const host = new URL(targetUrl).hostname;
+                const urlObj = new URL(targetUrl);
+                protocol = urlObj.protocol === 'https:' ? 'https' : 'http';
+                const host = urlObj.hostname;
                 const resolved = await resolveIP(host);
                 if (resolved) ip = resolved;
                 try {
@@ -84,7 +99,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     const bytes = res.headers.get('content-length');
                     realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '256kb';
                 } catch (e) {
-                    console.error("Origin fetch error", e);
+                    console.warn("Origin fetch soft-fail:", e);
                 }
             }
             await new Promise(r => setTimeout(r, injectedDelay));
@@ -96,11 +111,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
                     latency_injected: injectedDelay,
                     resolvedIP: ip,
                     testedUrl: targetUrl || 'Simulation Mode',
+                    protocol,
                     timestamp: Date.now()
                 }
             });
         } catch (err) {
-            return c.json({ success: false, error: 'Origin simulation failed' }, 500);
+            return c.json({ success: true, data: { error: true, source: 'Origin Server', size: '0kb', protocol: 'http' } });
         }
     });
     app.get('/api/stats', async (c) => {
@@ -109,7 +125,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.getCounterValue();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed to fetch stats' }, 500);
+            return c.json({ success: false, error: 'Failed' }, 500);
         }
     });
     app.post('/api/stats/increment', async (c) => {
@@ -118,7 +134,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.increment();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed to increment' }, 500);
+            return c.json({ success: false, error: 'Failed' }, 500);
         }
     });
 }
