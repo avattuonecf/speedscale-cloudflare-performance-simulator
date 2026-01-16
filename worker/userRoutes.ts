@@ -5,12 +5,12 @@ const IP_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2
 function isIPAddress(hostname: string): boolean {
     return IP_REGEX.test(hostname);
 }
-async function resolveIP(hostname: string): Promise<string | null> {
+async function resolveIP(hostname: string): Promise<string> {
     if (!hostname || hostname === 'Simulation Mode' || hostname === 'N/A' || isIPAddress(hostname)) {
-        return isIPAddress(hostname) ? hostname : null;
+        return isIPAddress(hostname) ? hostname : "N/A";
     }
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
     try {
         const res = await fetch(`https://dns.google/resolve?name=${hostname}&type=A`, {
             signal: controller.signal
@@ -20,62 +20,49 @@ async function resolveIP(hostname: string): Promise<string | null> {
         if (json.Answer && json.Answer.length > 0) {
             return json.Answer[0].data;
         }
-        return null;
+        return "N/A";
     } catch (e) {
         clearTimeout(timeoutId);
-        return null;
+        return "N/A";
     }
 }
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
-    const validateUrl = (url: string | null | undefined) => {
-        if (!url) return null;
-        try {
-            const hasProtocol = url.startsWith('http');
-            const cleanUrl = hasProtocol ? url : `https://${url}`;
-            const parsed = new URL(cleanUrl);
-            return parsed.toString();
-        } catch {
-            return null;
+    app.get('/api/metadata', async (c) => {
+        const urlParam = c.req.query('url');
+        if (!urlParam) {
+            return c.json({ success: false, error: 'URL is required' }, 400);
         }
-    };
-    app.get('/api/simulate/edge', async (c) => {
         try {
-            const urlParam = c.req.query('url');
-            const targetUrl = validateUrl(urlParam);
-            let realSize = '4.2kb';
-            let ip = '1.1.1.1';
-            let protocol: 'http' | 'https' = 'https';
-            if (targetUrl) {
-                const urlObj = new URL(targetUrl);
-                protocol = urlObj.protocol === 'https:' ? 'https' : 'http';
-                const resolved = await resolveIP(urlObj.hostname);
-                if (resolved) ip = resolved;
-                try {
-                    const res = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow' });
-                    const bytes = res.headers.get('content-length');
-                    realSize = bytes ? `${(parseInt(bytes) / 1024).toFixed(1)}kb` : '4.5kb';
-                } catch (e) {
-                    /* Non-fatal: HEAD request may fail due to CORS or target site policy */
-                    console.warn(`Simulated HEAD request failed for ${targetUrl}:`, e);
-                }
+            const url = new URL(urlParam.startsWith('http') ? urlParam : `https://${urlParam}`);
+            const ip = await resolveIP(url.hostname);
+            // Fast HEAD request to get metadata only
+            let size = '4.5kb';
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000);
+            try {
+                const res = await fetch(url.toString(), { 
+                    method: 'HEAD', 
+                    signal: controller.signal,
+                    redirect: 'follow'
+                });
+                const bytes = res.headers.get('content-length');
+                if (bytes) size = `${(parseInt(bytes) / 1024).toFixed(1)}kb`;
+            } catch (e) {
+                // Ignore non-fatal metadata errors
+            } finally {
+                clearTimeout(timeoutId);
             }
-            await new Promise(r => setTimeout(r, 10 + Math.random() * 20));
             return c.json({
                 success: true,
                 data: {
-                    source: 'Cloudflare Edge',
-                    size: realSize,
-                    resolvedIP: ip,
-                    testedUrl: targetUrl || 'Simulation Mode',
-                    protocol,
-                    timestamp: Date.now()
+                    ip,
+                    size,
+                    hostname: url.hostname,
+                    protocol: url.protocol.replace(':', '')
                 }
             } satisfies ApiResponse<any>);
         } catch (err) {
-            return c.json({ 
-                success: true, 
-                data: { error: true, source: 'Cloudflare Edge', size: '0kb', protocol: 'http' } 
-            } satisfies ApiResponse<any>);
+            return c.json({ success: false, error: 'Invalid URL' }, 400);
         }
     });
     app.get('/api/stats', async (c) => {
@@ -84,7 +71,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.getCounterValue();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed to fetch global stats' } satisfies ApiResponse<any>, 500);
+            return c.json({ success: false, error: 'Failed to fetch global stats' }, 500);
         }
     });
     app.post('/api/stats/increment', async (c) => {
@@ -93,7 +80,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
             const data = await stub.increment();
             return c.json({ success: true, data } satisfies ApiResponse<number>);
         } catch (err) {
-            return c.json({ success: false, error: 'Failed to increment stats' } satisfies ApiResponse<any>, 500);
+            return c.json({ success: false, error: 'Failed to increment stats' }, 500);
         }
     });
 }

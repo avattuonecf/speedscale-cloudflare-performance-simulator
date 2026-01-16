@@ -28,6 +28,9 @@ export interface TestMetric {
   protocol: 'http' | 'https';
   error?: boolean;
   source: 'worker' | 'browser';
+  isEstimated?: boolean;
+  ipAddress?: string;
+  asn?: string;
   browserMetadata?: {
     userAgent: string;
     timingAvailable: boolean;
@@ -39,4 +42,5 @@ export interface SpeedTestResult {
   speedup: number;
   targetUrl?: string;
   originUrl?: string;
+  measuredAt: number;
 }
