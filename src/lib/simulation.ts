@@ -15,31 +15,28 @@ async function measureFromBrowser(url: string, label: string): Promise<TestMetri
   const targetUrl = url.startsWith('http') ? url : `https://${url}`;
   const start = performance.now();
   try {
-    // We use no-cors because we only care about the network timing, not the content
-    await fetch(targetUrl, { 
-      mode: 'no-cors', 
+    await fetch(targetUrl, {
+      mode: 'no-cors',
       cache: 'no-cache',
       credentials: 'omit'
     });
     const end = performance.now();
-    const totalTime = Math.max(1, Math.round(end - start));
-    // Try to find the performance entry for this specific fetch
+    const rawTotal = Math.round(end - start);
+    const totalTime = Math.max(1, rawTotal);
     const entries = performance.getEntriesByName(targetUrl);
     const entry = entries[entries.length - 1] as PerformanceResourceTiming;
     const metadata = await fetchMetadata(targetUrl);
     let breakdown: NetworkBreakdown;
     let isEstimated = false;
-    // If Timing-Allow-Origin is set, we get high-fidelity phases
     if (entry && entry.duration > 0 && entry.requestStart > 0) {
       breakdown = {
-        dns: Math.round(entry.domainLookupEnd - entry.domainLookupStart),
-        connect: Math.round(entry.connectEnd - entry.connectStart),
-        tls: entry.secureConnectionStart > 0 ? Math.round(entry.connectEnd - entry.secureConnectionStart) : 0,
-        wait: Math.round(entry.responseStart - entry.requestStart),
-        download: Math.round(entry.responseEnd - entry.responseStart)
+        dns: Math.max(0, Math.round(entry.domainLookupEnd - entry.domainLookupStart)),
+        connect: Math.max(0, Math.round(entry.connectEnd - entry.connectStart)),
+        tls: entry.secureConnectionStart > 0 ? Math.max(0, Math.round(entry.connectEnd - entry.secureConnectionStart)) : 0,
+        wait: Math.max(0, Math.round(entry.responseStart - entry.requestStart)),
+        download: Math.max(1, Math.round(entry.responseEnd - entry.responseStart))
       };
     } else {
-      // Fallback: Percentage-based split based on measured totalTime
       isEstimated = true;
       const isHttps = targetUrl.startsWith('https');
       breakdown = {
@@ -47,7 +44,7 @@ async function measureFromBrowser(url: string, label: string): Promise<TestMetri
         connect: Math.round(totalTime * 0.1),
         tls: isHttps ? Math.round(totalTime * 0.1) : 0,
         wait: Math.round(totalTime * 0.6),
-        download: Math.max(1, totalTime - (Math.round(totalTime * 0.1) + Math.round(totalTime * 0.1) + (isHttps ? Math.round(totalTime * 0.1) : 0) + Math.round(totalTime * 0.6)))
+        download: Math.max(1, Math.round(totalTime * 0.2))
       };
     }
     return {
@@ -70,31 +67,29 @@ async function measureFromBrowser(url: string, label: string): Promise<TestMetri
     };
   } catch (err: any) {
     console.error(`Benchmark failed for ${label}: ${err?.message || 'Unknown error'}`);
-    // Return a failed metric object instead of crashing
-    const totalTime = 1000;
     return {
       ttfb: 800,
       duration: 200,
-      totalTime,
+      totalTime: 1000,
       size: '0kb',
       label,
       error: true,
       source: 'browser',
       protocol: 'https',
+      isEstimated: true,
       breakdown: { dns: 100, connect: 100, tls: 100, wait: 600, download: 100 }
     };
   }
 }
 export async function runSpeedTest(cfUrl?: string, originUrl?: string): Promise<SpeedTestResult> {
-  // Use defaults if none provided
   const targetCf = cfUrl || 'https://www.cloudflare.com';
   const targetOrigin = originUrl || 'https://www.google.com';
   const [edgeResult, originResult] = await Promise.all([
     measureFromBrowser(targetCf, 'Cloudflare Edge'),
     measureFromBrowser(targetOrigin, 'Origin Server')
   ]);
-  const speedup = Number((originResult.totalTime / edgeResult.totalTime).toFixed(1));
-  // Async stats increment
+  const speedupRaw = originResult.totalTime / edgeResult.totalTime;
+  const speedup = Number(speedupRaw.toFixed(1));
   fetch('/api/stats/increment', { method: 'POST' }).catch(() => {});
   return {
     edge: edgeResult,

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Zap, Globe, Info, BarChart3, Settings } from "lucide-react";
 import {
   Sidebar,
@@ -12,6 +13,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar";
 export function AppSidebar(): JSX.Element {
+  const location = useLocation();
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -27,18 +29,24 @@ export function AppSidebar(): JSX.Element {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive>
-                <a href="/"><Zap className="size-4" /> <span>Simulator</span></a>
+              <SidebarMenuButton asChild isActive={location.pathname === "/"}>
+                <Link to="/">
+                  <Zap className="size-4" /> <span>Simulator</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="#"><BarChart3 className="size-4" /> <span>Benchmarks</span></a>
+                <Link to="/">
+                  <BarChart3 className="size-4" /> <span>Benchmarks</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="#"><Globe className="size-4" /> <span>Global Network</span></a>
+                <Link to="/">
+                  <Globe className="size-4" /> <span>Global Network</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -48,12 +56,16 @@ export function AppSidebar(): JSX.Element {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="#"><Info className="size-4" /> <span>Methodology</span></a>
+                <Link to="/">
+                  <Info className="size-4" /> <span>Methodology</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
-                <a href="#"><Settings className="size-4" /> <span>Settings</span></a>
+                <Link to="/">
+                  <Settings className="size-4" /> <span>Settings</span>
+                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -61,7 +73,7 @@ export function AppSidebar(): JSX.Element {
       </SidebarContent>
       <SidebarFooter>
         <div className="px-3 py-4 text-[10px] text-muted-foreground uppercase font-bold tracking-wider text-center">
-          v1.0.4-beta
+          v1.0.5-final
         </div>
       </SidebarFooter>
     </Sidebar>

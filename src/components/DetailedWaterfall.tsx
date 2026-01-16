@@ -10,7 +10,8 @@ interface DetailedWaterfallProps {
   origin: TestMetric;
 }
 export function DetailedWaterfall({ edge, origin }: DetailedWaterfallProps) {
-  const maxTime = Math.max(edge.totalTime || 1, origin.totalTime || 1, 500);
+  // Use the actual max of the two tests, minimum 10ms for safety
+  const maxTime = Math.max(edge.totalTime || 0, origin.totalTime || 0, 10);
   const renderStack = (metric: TestMetric) => {
     const isEdge = metric.label.includes('Edge');
     const breakdown: NetworkBreakdown = metric.breakdown || { dns: 0, connect: 0, tls: 0, wait: 0, download: 0 };
@@ -18,8 +19,8 @@ export function DetailedWaterfall({ edge, origin }: DetailedWaterfallProps) {
       { label: 'DNS Resolution', value: breakdown.dns, color: isEdge ? 'bg-orange-200' : 'bg-slate-200', icon: <Globe className="w-3 h-3" /> },
       { label: 'TCP Handshake', value: breakdown.connect, color: isEdge ? 'bg-orange-300' : 'bg-slate-300', icon: <Zap className="w-3 h-3" /> },
       { label: 'SSL/TLS Security', value: breakdown.tls, color: isEdge ? 'bg-orange-400' : 'bg-slate-400', icon: <Shield className="w-3 h-3" /> },
-      { label: 'Time to First Byte', value: breakdown.wait, color: isEdge ? 'bg-[#F38020]' : 'bg-slate-600', icon: <Clock className="w-3 h-3" /> },
-      { label: 'Data Transfer', value: breakdown.download, color: isEdge ? 'bg-orange-700' : 'bg-slate-800', icon: <Download className="w-3 h-3" /> },
+      { label: 'Time to First Byte', value: breakdown.wait, color: isEdge ? 'bg-[#F38020]' : 'bg-slate-500 dark:bg-slate-600', icon: <Clock className="w-3 h-3" /> },
+      { label: 'Data Transfer', value: breakdown.download, color: isEdge ? 'bg-orange-700' : 'bg-slate-800 dark:bg-slate-400', icon: <Download className="w-3 h-3" /> },
     ];
     return (
       <div className="space-y-4">
@@ -30,7 +31,7 @@ export function DetailedWaterfall({ edge, origin }: DetailedWaterfallProps) {
                 {isEdge ? 'Edge Performance Pathway' : 'Direct Origin Pathway'}
               </span>
               {metric.isEstimated && (
-                <Badge variant="outline" className="h-4 text-[7px] font-black uppercase px-1.5 py-0 border-amber-200 text-amber-600 bg-amber-50">
+                <Badge variant="outline" className="h-4 text-[7px] font-black uppercase px-1.5 py-0 border-amber-200 text-amber-600 bg-amber-50 dark:bg-amber-900/20">
                   Estimated Phases
                 </Badge>
               )}
@@ -50,10 +51,14 @@ export function DetailedWaterfall({ edge, origin }: DetailedWaterfallProps) {
                       initial={{ width: 0 }}
                       animate={{ width: `${widthPct}%` }}
                       transition={{ duration: 0.8, delay: idx * 0.1 }}
-                      className={cn("h-full cursor-help border-r border-white/10 last:border-0", phase.color)}
+                      className={cn(
+                        "h-full cursor-help border-r border-white/20 last:border-0", 
+                        phase.color,
+                        "hover:opacity-90 transition-opacity"
+                      )}
                     />
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="p-3 glass-dark text-white border-0">
+                  <TooltipContent side="top" className="p-3 bg-black/90 backdrop-blur text-white border-0">
                     <div className="flex items-center gap-2 font-black text-[10px] uppercase tracking-wider pb-1.5 border-b border-white/10">
                       {phase.icon} {phase.label}
                     </div>
