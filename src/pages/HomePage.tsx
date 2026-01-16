@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Globe, RefreshCcw, Activity } from 'lucide-react';
+import { Zap, Globe, RefreshCcw, Activity, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Toaster, toast } from '@/components/ui/sonner';
-import { runSpeedTest, SpeedTestResult } from '@/lib/simulation';
+import { Input } from '@/components/ui/input';
+import { Toaster, toast } from 'sonner';
+import { runSpeedTest } from '@/lib/simulation';
+import { SpeedTestResult } from '@shared/types';
 import { SpeedVisualizer } from '@/components/SpeedVisualizer';
 import { ThemeToggle } from '@/components/ThemeToggle';
 export function HomePage() {
   const [status, setStatus] = useState<'idle' | 'running' | 'results'>('idle');
   const [results, setResults] = useState<SpeedTestResult | null>(null);
   const [globalStats, setGlobalStats] = useState<number>(0);
+  const [urlInput, setUrlInput] = useState('');
   useEffect(() => {
     fetchGlobalStats();
   }, []);
@@ -22,24 +25,27 @@ export function HomePage() {
     }
   };
   const startTest = async () => {
+    let target = urlInput.trim();
+    if (target && !target.match(/^https?:\/\//)) {
+      target = `https://${target}`;
+    }
     setStatus('running');
-    toast.info('Initiating speed simulation...');
+    toast.info(target ? `Testing performance for ${target}...` : 'Initiating speed simulation...');
     try {
-      const testResults = await runSpeedTest();
+      const testResults = await runSpeedTest(target || undefined);
       setResults(testResults);
       setStatus('results');
       fetchGlobalStats();
       toast.success('Simulation complete!');
     } catch (e) {
       setStatus('idle');
-      toast.error('Simulation failed. Please try again.');
+      toast.error('Simulation failed. Please check the URL and try again.');
     }
   };
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="py-8 md:py-10 lg:py-12 min-h-screen flex flex-col">
         <ThemeToggle />
-        {/* Header Section */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-16">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-[#F38020] rounded-lg">
@@ -47,43 +53,56 @@ export function HomePage() {
             </div>
             <h1 className="text-2xl font-bold tracking-tight">SpeedScale</h1>
           </div>
-          <div className="flex items-center gap-6 text-sm">
-            <div className="flex flex-col">
-              <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">Network Status</span>
-              <span className="flex items-center gap-1.5 font-medium">
+          <div className="flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="flex flex-col items-end">
+              <span className="uppercase text-[10px] font-bold tracking-widest">Edge Status</span>
+              <span className="flex items-center gap-1.5 font-medium text-foreground">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Edge Nodes Active
+                Optimal
               </span>
             </div>
-            <div className="flex flex-col">
-              <span className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">Global Simulations</span>
-              <span className="font-medium tabular-nums">{globalStats.toLocaleString()}</span>
+            <div className="flex flex-col items-end">
+              <span className="uppercase text-[10px] font-bold tracking-widest">Global Tests</span>
+              <span className="font-medium tabular-nums text-foreground">{globalStats.toLocaleString()}</span>
             </div>
           </div>
         </header>
-        {/* Hero / Main Interaction Area */}
         <main className="flex-1">
           {status === 'idle' && (
-            <div className="max-w-3xl mx-auto text-center space-y-8 py-20 animate-in fade-in zoom-in-95 duration-700">
+            <div className="max-w-3xl mx-auto text-center space-y-8 py-12 md:py-20 animate-in fade-in zoom-in-95 duration-700">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary text-secondary-foreground text-xs font-medium border">
-                <Globe className="w-3 h-3" />
-                Built on Cloudflare Workers
+                <Globe className="w-3 h-3 text-[#F38020]" />
+                Live Network Simulation
               </div>
               <h2 className="text-5xl md:text-7xl font-bold tracking-tight text-balance">
                 Experience the <span className="text-[#F38020]">Edge</span> performance.
               </h2>
               <p className="text-xl text-muted-foreground text-pretty max-w-xl mx-auto">
-                Compare direct-to-origin latency against Cloudflare's global network in real-time. 
-                Visualize the impact of caching and proximity.
+                Compare direct-to-origin latency against Cloudflare's global network in real-time.
               </p>
-              <div className="pt-4">
-                <Button 
-                  onClick={startTest} 
+              <div className="max-w-md mx-auto space-y-4 pt-4">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-muted-foreground group-focus-within:text-[#F38020] transition-colors">
+                    <LinkIcon className="w-4 h-4" />
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="https://example.com"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    className="pl-10 h-12 bg-secondary/50 border-input focus:border-[#F38020] focus:ring-[#F38020]/20 rounded-xl transition-all"
+                  />
+                </div>
+                <Button
+                  onClick={startTest}
                   size="lg"
-                  className="bg-[#F38020] hover:bg-[#E55A1B] text-white px-10 h-14 text-lg font-semibold shadow-lg shadow-[#F38020]/20 rounded-full"
+                  className="w-full bg-[#F38020] hover:bg-[#E55A1B] text-white h-12 text-lg font-semibold shadow-lg shadow-[#F38020]/20 rounded-xl"
                 >
                   Run Simulation
                 </Button>
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                  Leave empty to use sample data
+                </p>
               </div>
             </div>
           )}
@@ -98,18 +117,18 @@ export function HomePage() {
                 <div className="w-full max-w-sm mx-auto h-2 bg-secondary rounded-full overflow-hidden">
                   <div className="h-full bg-[#F38020] animate-[shimmer_2s_infinite]" style={{ width: '60%' }} />
                 </div>
-                <p className="text-muted-foreground animate-pulse">Requesting from global edge nodes & origin...</p>
+                <p className="text-muted-foreground animate-pulse">Requesting payload from {urlInput || 'Edge & Origin'}...</p>
               </div>
             </div>
           )}
           {status === 'results' && results && (
-            <div className="space-y-12">
+            <div className="space-y-12 pb-20">
               <SpeedVisualizer results={results} />
-              <div className="flex justify-center pb-20">
-                <Button 
-                  variant="outline" 
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
                   onClick={() => setStatus('idle')}
-                  className="gap-2 rounded-full px-6"
+                  className="gap-2 rounded-full px-8 h-12 border-muted-foreground/20 hover:bg-secondary"
                 >
                   <RefreshCcw className="w-4 h-4" />
                   Run New Test
@@ -121,9 +140,9 @@ export function HomePage() {
         <footer className="border-t py-8 mt-auto flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-foreground">
           <p>© 2024 SpeedScale Engine. Real-world performance may vary.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:underline">Methodology</a>
-            <a href="#" className="hover:underline">Network Map</a>
-            <a href="#" className="hover:underline">Documentation</a>
+            <a href="#" className="hover:text-foreground transition-colors">Methodology</a>
+            <a href="#" className="hover:text-foreground transition-colors">Network Map</a>
+            <a href="#" className="hover:text-foreground transition-colors">Documentation</a>
           </div>
         </footer>
       </div>
